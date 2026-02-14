@@ -12,7 +12,13 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 // @access  Public (Should be Admin only in production)
 const registerUser = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  console.log("DEBUG BODY:", req.body);
+  console.log('Register request content-type:', req.headers && req.headers['content-type']);
+  const { name, email, password, role } = req.body || {};
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Missing required fields: name, email, password' });
+  }
+
 
   try {
     const userExists = await User.findOne({ email });
@@ -51,7 +57,10 @@ const registerUser = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Email and password required' });
+  }
 
   try {
     const user = await User.findOne({ email }).select('+password');
