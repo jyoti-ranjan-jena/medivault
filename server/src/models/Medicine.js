@@ -17,7 +17,7 @@ const medicineSchema = mongoose.Schema({
   genericName: { type: String }, // e.g., Acetaminophen
   category: { 
     type: String, 
-    enum: ['Tablet', 'Syrup', 'Injection', 'Surgical', 'Drops'],
+    enum: ['Tablet', 'Syrup', 'Injection', 'Surgical', 'Drops', 'Capsule', 'Cream', 'Ointment'], // <--- UPDATED LINE
     required: true 
   },
   manufacturer: { type: String, required: true },
@@ -46,11 +46,12 @@ const medicineSchema = mongoose.Schema({
 });
 
 // Middleware: Auto-calculate total stock before saving
-medicineSchema.pre('save', function(next) {
+// Modern Async Version (No 'next' parameter needed)
+medicineSchema.pre('save', async function() {
   if (this.batches) {
     this.totalStock = this.batches.reduce((acc, batch) => acc + batch.quantity, 0);
   }
-  next();
+  // No next() call needed for async functions in Mongoose 6+
 });
 
 module.exports = mongoose.model('Medicine', medicineSchema);

@@ -6,6 +6,9 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes'); // Import routes
+const medicineRoutes = require('./src/routes/medicineRoutes');
+const patientRoutes = require('./src/routes/patientRoutes')
+const billRoutes = require('./src/routes/billRoutes');
 
 // Initialize App
 const app = express();
@@ -43,6 +46,9 @@ if (process.env.NODE_ENV !== 'production') {
 
 // --- 3. Routes (LAST) ---
 app.use('/api/auth', authRoutes); // Routes utilize the parsers above
+app.use('/api/medicines', medicineRoutes);
+app.use('/api/patients', patientRoutes);
+app.use('/api/bills', billRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
