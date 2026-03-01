@@ -1,20 +1,36 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import DashboardLayout from './layouts/DashboardLayout';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
 
-function App() {
+// Placeholder Pages (Temporary)
+// const Dashboard = () => <div className="bento-card"><h1 className="text-2xl font-bold">Dashboard</h1></div>;
+const Inventory = () => <div className="bento-card"><h1 className="text-2xl font-bold">Inventory</h1></div>;
+
+export default function App() {
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <div className="p-8 bg-white rounded-lg shadow-xl">
-        <h1 className="text-3xl font-bold text-accent mb-4">
-          MediVault HMS
-        </h1>
-        <p className="text-gray-600">
-          Frontend is running & Tailwind is active!
-        </p>
-        <button className="mt-4 px-4 py-2 bg-primary text-black rounded hover:bg-secondary transition">
-          Test Button
-        </button>
-      </div>
-    </div>
-  )
-}
+    <AuthProvider>
+      <BrowserRouter>
+        <Toaster position="top-right" /> {/* Notifications */}
+        
+        <Routes>
+          {/* Public Route */}
+          <Route path="/login" element={<Login />} />
 
-export default App
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="inventory" element={<Inventory />} />
+              {/* Add patients and billing here later */}
+            </Route>
+          </Route>
+        </Routes>
+        
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
