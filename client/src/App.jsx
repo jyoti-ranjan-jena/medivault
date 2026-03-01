@@ -4,11 +4,8 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
+import Inventory from './pages/Inventory';
 import Login from './pages/Login';
-
-// Placeholder Pages (Temporary)
-// const Dashboard = () => <div className="bento-card"><h1 className="text-2xl font-bold">Dashboard</h1></div>;
-const Inventory = () => <div className="bento-card"><h1 className="text-2xl font-bold">Inventory</h1></div>;
 
 export default function App() {
   return (
