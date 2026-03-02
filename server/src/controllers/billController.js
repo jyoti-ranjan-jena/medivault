@@ -107,7 +107,7 @@ const getBills = async (req, res) => {
   try {
     const bills = await Bill.find()
       .populate('patient', 'name mobile') // Fetch patient name and mobile
-      .populate('medicines.medicine', 'name') // Fetch medicine names
+      .populate('items.medicine', 'name') // Fetch medicine names
       .sort('-createdAt'); // Sort by newest first
       
       res.status(200).json({ success: true, count: bills.length, data: bills });
