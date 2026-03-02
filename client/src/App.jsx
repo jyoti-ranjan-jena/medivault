@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
+import Billing from './pages/Billing';
 import Login from './pages/Login';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/" element={<DashboardLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="inventory" element={<Inventory />} />
+              <Route path="billing" element={<Billing />} />
               {/* Add patients and billing here later */}
             </Route>
           </Route>
