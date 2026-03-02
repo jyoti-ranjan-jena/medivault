@@ -55,6 +55,18 @@ body {
 /* 3. REUSABLE COMPONENTS
   We can use this class anywhere to instantly create a beautiful card 
 */
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  50% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+
 @layer components {
   .bento-card {
     @apply bg-surface rounded-2xl shadow-bento border border-slate-100 p-6 transition-all duration-200;
