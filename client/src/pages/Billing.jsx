@@ -126,7 +126,7 @@ export default function Billing() {
           _id: med._id,
           batchId: validBatch._id, // 🔴 THE MISSING PIECE!
           name: med.name,
-          price: validBatch.price || med.price || 150,
+          price: Number(validBatch.sellPrice) || Number(med.sellPrice) || 0,
           quantity: 1,
           maxStock: validBatch.quantity,
         },
@@ -178,14 +178,7 @@ export default function Billing() {
         })),
 
         // Also send under "medicines" array just in case your backend expects that word
-        medicines: cart.map((item) => ({
-          medicine: item._id,
-          medicineId: item._id,
-          batch: item.batchId,
-          batchId: item.batchId,
-          quantity: item.quantity,
-        })),
-
+        discount: discount || 0,
         totalAmount: grandTotal,
         paymentMethod: paymentMode,
       };
