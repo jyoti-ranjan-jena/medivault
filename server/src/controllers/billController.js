@@ -99,4 +99,21 @@ const createBill = async (req, res) => {
   }
 };
 
-module.exports = { createBill };
+
+// @desc    Get all bills / transaction history
+// @route   GET /api/bills
+// @access  Private
+const getBills = async (req, res) => {
+  try {
+    const bills = await Bill.find()
+      .populate('patient', 'name mobile') // Fetch patient name and mobile
+      .populate('medicines.medicine', 'name') // Fetch medicine names
+      .sort('-createdAt'); // Sort by newest first
+      
+      res.status(200).json({ success: true, count: bills.length, data: bills });
+    } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createBill, getBills };
