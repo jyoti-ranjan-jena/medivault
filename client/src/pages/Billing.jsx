@@ -43,13 +43,12 @@ export default function Billing() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [cart, setCart] = useState([]);
   const [paymentMode, setPaymentMode] = useState("Cash");
-  const [discount, setDiscount] = useState(0);
+  const [discount, setDiscount] = useState(0); 
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [patientSearch, setPatientSearch] = useState("");
   const [medicineSearch, setMedicineSearch] = useState("");
 
-  // --- NEW: RECEIPT STATE ---
   const [receiptData, setReceiptData] = useState(null);
 
   useEffect(() => {
@@ -98,25 +97,21 @@ export default function Billing() {
     }
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate day comparison
+    today.setHours(0, 0, 0, 0); 
 
-    // 🔴 CLINICAL SAFETY LOCK: Find a batch that has stock AND is NOT expired
     const validBatch = med.batches.find((b) => {
       if (b.quantity <= 0) return false;
-      if (!b.expiryDate) return false; // Reject if database is missing expiry data
-
+      if (!b.expiryDate) return false; 
       const expDate = new Date(b.expiryDate);
-      return expDate >= today; // Must expire today or in the future
+      return expDate >= today; 
     });
 
-    // If no valid batch was found, figure out exactly why to warn the attendant
     if (!validBatch) {
       const expiredBatchesInStock = med.batches.some(
         (b) => b.quantity > 0 && new Date(b.expiryDate) < today,
       );
 
       if (expiredBatchesInStock) {
-        // Hard Stop: Medicine is physically there, but expired!
         toast.error(`SECURITY LOCK: Stock for ${med.name} is EXPIRED!`, {
           icon: "🛑",
           style: {
@@ -132,7 +127,6 @@ export default function Billing() {
       return;
     }
 
-    // --- Proceed to add to cart if it passes the firewall ---
     const existingItem = cart.find((item) => item._id === med._id);
     if (existingItem) {
       if (existingItem.quantity >= validBatch.quantity) {
@@ -177,11 +171,28 @@ export default function Billing() {
 
   const removeItem = (id) => setCart(cart.filter((item) => item._id !== id));
 
+  // --- DYNAMIC DISCOUNT ENGINE ---
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
-  const grandTotal = Math.max(0, subtotal - (discount || 0));
+
+  const TIER_DISCOUNTS = {
+    Standard: 0.05, 
+    Silver: 0.15,   
+    Gold: 0.25,     
+    Platinum: 0.40  
+  };
+
+  const currentTier = selectedPatient?.membershipTier || "Standard";
+  const tierDiscountRate = selectedPatient ? TIER_DISCOUNTS[currentTier] : 0;
+  const autoDiscountAmount = subtotal * tierDiscountRate;
+
+  const manualDiscount = discount || 0;
+  const totalDiscount = autoDiscountAmount + manualDiscount;
+
+  const grandTotal = Math.max(0, subtotal - totalDiscount);
+  // --------------------------------
 
   const handleProcessTransaction = async () => {
     setIsProcessing(true);
@@ -193,7 +204,7 @@ export default function Billing() {
           batchId: item.batchId,
           quantity: item.quantity,
         })),
-        discount: discount || 0,
+        discount: totalDiscount, 
         paymentMode: paymentMode,
       };
 
@@ -201,25 +212,22 @@ export default function Billing() {
 
       toast.success("Transaction Completed!", { icon: "✅" });
 
-      // --- SNAPSHOT DATA FOR RECEIPT ---
       setReceiptData({
         invoiceId: res.data.data._id || Math.floor(Math.random() * 1000000),
         date: new Date().toLocaleString(),
         patient: selectedPatient,
         items: [...cart],
         subtotal,
-        discount: discount || 0,
+        discount: totalDiscount, 
         grandTotal,
         paymentMode,
       });
 
-      // Reset POS Terminal
       setCart([]);
       setSelectedPatient(null);
       setDiscount(0);
       setPaymentMode("Cash");
 
-      // Refresh inventory stock silently
       const invRes = await api.get("/medicines");
       setDbMedicines(invRes.data.data);
     } catch (error) {
@@ -229,21 +237,18 @@ export default function Billing() {
     }
   };
 
-  // --- PRINT HANDLER ---
   const handlePrint = () => {
     window.print();
   };
 
   return (
     <>
-      {/* ========================================== */}
-      {/* MAIN POS UI (Hidden during printing)       */}
-      {/* ========================================== */}
       <motion.div
         variants={pageVariants}
         initial="hidden"
         animate="show"
-        className="max-w-[1400px] mx-auto h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-6 print:hidden"
+        // FIX 1: Responsive height handling so things don't get squished out on smaller screens
+        className="max-w-[1400px] mx-auto h-auto lg:h-[calc(100vh-8rem)] min-h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-6 print:hidden"
       >
         {/* LEFT PANE: THE LEDGER */}
         <div className="flex-1 flex flex-col gap-6 h-full">
@@ -479,7 +484,7 @@ export default function Billing() {
         >
           <motion.div
             layout
-            className={`bento-card p-6 border-2 transition-all duration-500 ${selectedPatient ? "border-status-success bg-emerald-50/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]" : "border-dashed border-slate-300 bg-transparent"}`}
+            className={`bento-card p-6 border-2 transition-all duration-500 shrink-0 ${selectedPatient ? "border-primary bg-primary-light/10 shadow-[0_0_20px_rgba(37,99,235,0.1)]" : "border-dashed border-slate-300 bg-transparent"}`}
           >
             <AnimatePresence mode="wait">
               {selectedPatient ? (
@@ -487,21 +492,30 @@ export default function Billing() {
                   key="selected"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-4"
+                  className="flex items-center justify-between gap-4"
                 >
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-status-success blur-md opacity-40 rounded-full"></div>
-                    <div className="relative w-12 h-12 rounded-full bg-status-success text-white flex items-center justify-center font-bold text-lg shadow-md border-2 border-white">
-                      {selectedPatient.name.charAt(0)}
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary blur-md opacity-40 rounded-full"></div>
+                      <div className="relative w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg shadow-md border-2 border-white">
+                        {selectedPatient.name.charAt(0)}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-text-main text-lg leading-tight">
+                        {selectedPatient.name}
+                      </p>
+                      <p className="text-sm font-medium text-primary">
+                        Linked & Verified
+                      </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="font-extrabold text-text-main text-lg leading-tight">
-                      {selectedPatient.name}
-                    </p>
-                    <p className="text-sm font-medium text-status-success">
-                      Linked & Verified
-                    </p>
+                  <div className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 
+                    ${currentTier === 'Platinum' ? 'bg-slate-800 text-slate-100 border-slate-600' : 
+                      currentTier === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 
+                      currentTier === 'Silver' ? 'bg-slate-100 text-slate-600 border-slate-300' : 
+                      'bg-emerald-100 text-emerald-700 border-emerald-300'}`}>
+                    {currentTier}
                   </div>
                 </motion.div>
               ) : (
@@ -520,20 +534,43 @@ export default function Billing() {
             </AnimatePresence>
           </motion.div>
 
-          <div className="bento-card p-6 flex-1 flex flex-col justify-between border-slate-200/60 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-            <div className="space-y-6 relative z-10">
+          {/* FIX 2: Separated scrollable content and fixed bottom button */}
+          <div className="bento-card flex-1 flex flex-col border-slate-200/60 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+            
+            {/* Scrollable Summary */}
+            <div className="p-6 flex-1 overflow-y-auto space-y-6 relative z-10 min-h-0 custom-scrollbar">
               <h3 className="font-bold text-text-main text-xl tracking-tight">
                 Payment Summary
               </h3>
               <div className="space-y-4">
+                
                 <div className="flex justify-between items-center text-text-muted font-medium">
                   <span>Subtotal</span>
                   <span className="text-text-main font-bold tabular-nums text-lg">
                     ₹{subtotal.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-text-muted font-medium">
-                  <span className="flex items-center gap-2">Discount</span>
+
+                <AnimatePresence>
+                  {selectedPatient && tierDiscountRate > 0 && subtotal > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }} 
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex justify-between items-center text-status-success font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-100 overflow-hidden"
+                    >
+                      <span className="flex items-center gap-1">
+                        {currentTier} Disc ({tierDiscountRate * 100}%)
+                      </span>
+                      <span className="tabular-nums text-lg">
+                        - ₹{autoDiscountAmount.toFixed(2)}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex justify-between items-center text-text-muted font-medium pt-2 border-t border-slate-100">
+                  <span className="flex items-center gap-2 text-sm">Extra Adjust</span>
                   <div className="relative w-28 group">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-status-warning font-bold">
                       ₹
@@ -543,11 +580,13 @@ export default function Billing() {
                       min="0"
                       value={discount || ""}
                       onChange={(e) => setDiscount(Number(e.target.value))}
-                      className="w-full pl-7 pr-3 py-2 bg-amber-50/50 border border-amber-200/50 rounded-xl focus:bg-white focus:ring-4 focus:ring-amber-400/20 focus:border-amber-400 outline-none text-right font-bold text-status-warning transition-all shadow-sm"
+                      placeholder="0.00"
+                      className="w-full pl-7 pr-3 py-1.5 bg-amber-50/50 border border-amber-200/50 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 outline-none text-right font-bold text-status-warning transition-all shadow-sm text-sm"
                     />
                   </div>
                 </div>
               </div>
+
               <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-6"></div>
               <div className="flex justify-between items-end">
                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">
@@ -557,7 +596,7 @@ export default function Billing() {
                   key={grandTotal}
                   initial={{ scale: 1.1, color: "#1D4ED8" }}
                   animate={{ scale: 1, color: "#2563EB" }}
-                  className="text-5xl font-extrabold text-primary tracking-tighter tabular-nums drop-shadow-sm"
+                  className="text-4xl lg:text-5xl font-extrabold text-primary tracking-tighter tabular-nums drop-shadow-sm"
                 >
                   ₹{grandTotal.toFixed(2)}
                 </motion.span>
@@ -594,21 +633,25 @@ export default function Billing() {
               </div>
             </div>
 
-            <motion.button
-              onClick={handleProcessTransaction}
-              disabled={cart.length === 0 || !selectedPatient || isProcessing}
-              className="w-full py-4 mt-8 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_25px_rgba(37,99,235,0.35)] transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2 relative overflow-hidden group z-10"
-            >
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
-              {isProcessing ? (
-                <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Receipt size={24} className="relative z-10" />
-                  <span className="relative z-10">Process Transaction</span>
-                </>
-              )}
-            </motion.button>
+            {/* Fixed Bottom Button Area */}
+            <div className="p-6 pt-2 bg-white shrink-0 relative z-10 border-t border-slate-100">
+              <motion.button
+                onClick={handleProcessTransaction}
+                disabled={cart.length === 0 || !selectedPatient || isProcessing}
+                className="w-full py-4 mt-2 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_25px_rgba(37,99,235,0.35)] transition-all disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center gap-2 relative overflow-hidden group z-10"
+              >
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                {isProcessing ? (
+                  <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Receipt size={24} className="relative z-10" />
+                    <span className="relative z-10">Process Transaction</span>
+                  </>
+                )}
+              </motion.button>
+            </div>
+            
           </div>
         </motion.div>
       </motion.div>
@@ -622,16 +665,17 @@ export default function Billing() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm print:bg-white print:backdrop-blur-none"
+            // Added p-4 to ensure modal doesn't touch screen edges on small devices
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm print:bg-white print:backdrop-blur-none p-4"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full relative print:shadow-none print:p-0"
+              // FIX 3: Constrained modal max-height and made item list inside scrollable
+              className="bg-white p-6 md:p-8 rounded-2xl shadow-2xl max-w-sm w-full relative print:shadow-none print:p-0 max-h-[95vh] flex flex-col"
             >
-              {/* Receipt Content (Thermal Printer Style) */}
-              <div className="text-center mb-6">
+              <div className="text-center mb-6 shrink-0">
                 <div className="mx-auto w-12 h-12 bg-emerald-100 text-status-success rounded-full flex items-center justify-center mb-4 print:hidden">
                   <CheckCircle2 size={32} />
                 </div>
@@ -650,7 +694,7 @@ export default function Billing() {
                 </div>
               </div>
 
-              <div className="border-t-2 border-dashed border-slate-200 py-4 mb-4">
+              <div className="border-t-2 border-dashed border-slate-200 py-4 mb-4 shrink-0">
                 <p className="text-sm font-bold text-slate-700 mb-1">
                   Patient: {receiptData.patient.name}
                 </p>
@@ -659,8 +703,9 @@ export default function Billing() {
                 </p>
               </div>
 
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+              {/* FIX 4: Scrollable items list on screen, full height on print */}
+              <div className="space-y-3 mb-6 flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar print:overflow-visible print:max-h-none">
+                <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 sticky top-0 bg-white pt-1">
                   <span>Item</span>
                   <span>Amount</span>
                 </div>
@@ -680,7 +725,7 @@ export default function Billing() {
                 ))}
               </div>
 
-              <div className="border-t-2 border-dashed border-slate-200 pt-4 space-y-2">
+              <div className="border-t-2 border-dashed border-slate-200 pt-4 space-y-2 shrink-0">
                 <div className="flex justify-between text-sm font-bold text-slate-500">
                   <span>Subtotal</span>
                   <span>₹{receiptData.subtotal.toFixed(2)}</span>
@@ -697,13 +742,12 @@ export default function Billing() {
                 </div>
               </div>
 
-              <div className="mt-8 text-center text-xs font-bold text-slate-400 print:block">
+              <div className="mt-6 text-center text-xs font-bold text-slate-400 shrink-0 print:block">
                 <p>Thank you for choosing Medivault.</p>
                 <p>Get well soon!</p>
               </div>
 
-              {/* Action Buttons (Hidden on Print) */}
-              <div className="mt-8 flex gap-3 print:hidden">
+              <div className="mt-8 flex gap-3 shrink-0 print:hidden">
                 <button
                   onClick={() => setReceiptData(null)}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
