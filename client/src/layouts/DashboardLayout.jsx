@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Pill, Users, Receipt, LogOut, Bell, Search, Settings } from 'lucide-react';
+import { LayoutDashboard, Pill, Users, Receipt, LogOut, Bell, Search, Settings, History } from 'lucide-react';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -28,6 +28,7 @@ export default function DashboardLayout() {
     { name: 'Inventory', to: '/inventory', icon: Pill, roles: ['admin', 'attendant', 'pharmacist'] },
     { name: 'Patients', to: '/patients', icon: Users, roles: ['admin', 'attendant'] },
     { name: 'Billing POS', to: '/billing', icon: Receipt, roles: ['admin', 'attendant'] },
+    { name: 'Transaction History', to: '/transactions', icon: History, roles: ['admin', 'attendant'] },
     { name: 'System Settings', to: '/settings', icon: Settings, roles: ['admin'] }, // ONLY ADMIN
   ];
 

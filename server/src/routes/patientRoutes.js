@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
-// IMPORT the new createPatient controller here:
-const { getPatients, createPatient } = require('../controllers/patientController'); 
+const { getPatients, createPatient, updatePatient, deletePatient } = require('../controllers/patientController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.get('/', protect, getPatients);
-router.post('/', protect, createPatient); // ADD THIS LINE
+router.route('/')
+  .get(protect, getPatients)
+  .post(protect, createPatient);
+
+router.route('/:id')
+  .put(protect, updatePatient)
+  .delete(protect, deletePatient);
 
 module.exports = router;

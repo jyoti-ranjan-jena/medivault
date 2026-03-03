@@ -8,6 +8,7 @@ import Inventory from './pages/Inventory';
 import Billing from './pages/Billing';
 import Patients from './pages/Patients';
 import SystemSettings from './pages/SystemSettings';
+import TransactionHistory from './pages/TransactionHistory';
 import Login from './pages/Login';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
               <Route path="billing" element={<Billing />} />
               <Route path="patients" element={<Patients />} />
               <Route path="settings" element={<SystemSettings />} />
+              <Route path="transactions" element={<TransactionHistory />} />
               {/* Add patients and billing here later */}
             </Route>
           </Route>
