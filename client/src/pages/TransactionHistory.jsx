@@ -137,7 +137,27 @@ export default function TransactionHistory() {
                           <p className="text-xs font-medium text-slate-400">{bill.patient?.mobile || 'No Phone'}</p>
                         </td>
                         <td className="px-6 py-5">
-                          <p className="text-base font-black text-text-main tabular-nums tracking-tight">₹{Number(bill.grandTotal || bill.totalAmount || 0).toFixed(2)}</p>
+                          {/* --- NEW DUAL PRICING DISPLAY --- */}
+                          <div className="flex flex-col items-start">
+                            <span className="text-base font-black text-primary tabular-nums tracking-tight">
+                              ₹{Number(bill.grandTotal || bill.totalAmount || 0).toFixed(2)}
+                            </span>
+                            
+                            {bill.discount > 0 ? (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-xs font-medium text-slate-400 line-through tabular-nums">
+                                  ₹{Number(bill.totalAmount || 0).toFixed(2)}
+                                </span>
+                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md tracking-wider">
+                                  -₹{Number(bill.discount).toFixed(2)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-medium text-slate-400 mt-0.5">
+                                No Discount
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-5">
                           <span className={`flex items-center gap-1.5 w-max px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${getPaymentBadge(bill.paymentMode)}`}>
@@ -179,14 +199,15 @@ export default function TransactionHistory() {
         {selectedReceipt && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md print:bg-white print:backdrop-blur-none"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md print:bg-white print:backdrop-blur-none p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="bg-white p-8 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.3)] max-w-sm w-full relative print:shadow-none print:p-0"
+              // Added flex-col and max-h logic for scrolling protection
+              className="bg-white p-6 md:p-8 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.3)] max-w-sm w-full relative print:shadow-none print:p-0 max-h-[95vh] flex flex-col"
             >
               {/* Receipt Content (Thermal Printer Style) */}
-              <div className="text-center mb-6">
+              <div className="text-center mb-6 shrink-0">
                 <div className="mx-auto w-12 h-12 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 print:hidden">
                   <Receipt size={24} />
                 </div>
@@ -198,13 +219,14 @@ export default function TransactionHistory() {
                 </div>
               </div>
 
-              <div className="border-t-2 border-dashed border-slate-200 py-4 mb-4">
+              <div className="border-t-2 border-dashed border-slate-200 py-4 mb-4 shrink-0">
                 <p className="text-sm font-bold text-slate-700 mb-1">Patient: {selectedReceipt.patient?.name || 'Walk-in Patient'}</p>
                 <p className="text-xs font-medium text-slate-500">Mode: {selectedReceipt.paymentMode}</p>
               </div>
 
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+              {/* Made the items list scrollable digitally, but expand for printing */}
+              <div className="space-y-3 mb-6 flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar print:overflow-visible print:max-h-none">
+                <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 sticky top-0 bg-white pt-1">
                   <span>Item</span>
                   <span>Amount</span>
                 </div>
@@ -219,7 +241,7 @@ export default function TransactionHistory() {
                 ))}
               </div>
 
-              <div className="border-t-2 border-dashed border-slate-200 pt-4 space-y-2">
+              <div className="border-t-2 border-dashed border-slate-200 pt-4 space-y-2 shrink-0">
                 <div className="flex justify-between text-sm font-bold text-slate-500">
                   <span>Subtotal</span>
                   <span>₹{Number(selectedReceipt.totalAmount || 0).toFixed(2)}</span>
@@ -236,13 +258,13 @@ export default function TransactionHistory() {
                 </div>
               </div>
 
-              <div className="mt-8 text-center text-xs font-bold text-slate-400 print:block">
+              <div className="mt-6 text-center text-xs font-bold text-slate-400 shrink-0 print:block">
                 <p>Thank you for choosing Medivault.</p>
                 <p>Duplicate Copy - Issued {new Date().toLocaleDateString()}</p>
               </div>
 
               {/* Action Buttons (Hidden on Print) */}
-              <div className="mt-8 flex gap-3 print:hidden">
+              <div className="mt-8 flex gap-3 shrink-0 print:hidden">
                 <button 
                   onClick={() => setSelectedReceipt(null)}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
