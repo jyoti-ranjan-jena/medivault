@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
+    "@tremor/react": "^3.18.7",
     "axios": "^1.13.5",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
@@ -18,6 +19,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
+    "react-is": "^19.2.4",
     "react-parallax-tilt": "^1.7.319",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.13.0",

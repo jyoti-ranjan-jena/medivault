@@ -55,4 +55,8 @@ const billSchema = mongoose.Schema({
   timestamps: true
 });
 
+// --- TRACK C: ENTERPRISE INDEXING ---
+billSchema.index({ createdAt: -1 }); // Critical for fast Dashboard chart rendering
+billSchema.index({ patient: 1 });
+
 module.exports = mongoose.model('Bill', billSchema);

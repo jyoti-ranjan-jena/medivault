@@ -1,34 +1,3 @@
-// const mongoose = require('mongoose');
-
-// const patientSchema = mongoose.Schema({
-//   name: {
-//     type: String,
-//     required: true
-//   },
-//   age: {
-//     type: Number,
-//     required: true
-//   },
-//   gender: {
-//     type: String,
-//     enum: ['Male', 'Female', 'Other'],
-//     required: true
-//   },
-//   mobile: {
-//     type: String,
-//     required: true
-//   },
-//   // Useful for returning patients
-//   visits: [{
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: 'Bill'
-//   }]
-// }, {
-//   timestamps: true
-// });
-
-// module.exports = mongoose.model('Patient', patientSchema);
-
 const mongoose = require('mongoose');
 
 const patientSchema = new mongoose.Schema(
@@ -100,5 +69,10 @@ const patientSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// --- TRACK C: ENTERPRISE INDEXING ---
+// patientSchema.index({ mobile: 1 }); // Instant mobile number lookups
+patientSchema.index({ name: 'text' }); // Fast text-based search
+patientSchema.index({ membershipTier: 1 }); // Speeds up tier filtering
 
 module.exports = mongoose.model('Patient', patientSchema);

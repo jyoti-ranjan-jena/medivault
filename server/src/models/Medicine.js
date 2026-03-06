@@ -54,4 +54,9 @@ medicineSchema.pre('save', async function() {
   // No next() call needed for async functions in Mongoose 6+
 });
 
+// --- TRACK C: ENTERPRISE INDEXING ---
+medicineSchema.index({ name: 'text' });
+medicineSchema.index({ totalStock: 1 }); // Instant low-stock detection
+medicineSchema.index({ 'batches.expiryDate': 1 }); // Speeds up Threat Radar
+
 module.exports = mongoose.model('Medicine', medicineSchema);
