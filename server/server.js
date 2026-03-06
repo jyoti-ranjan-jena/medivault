@@ -51,6 +51,7 @@ app.use('/api/medicines', medicineRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/dashboard', require('./src/routes/dashboardRoutes'));
 
 // Test Route
 app.get('/', (req, res) => {
