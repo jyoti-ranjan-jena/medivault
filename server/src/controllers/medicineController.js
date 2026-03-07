@@ -1,19 +1,49 @@
 const Medicine = require('../models/Medicine');
 
-// @desc    Get all medicines (with filter for low stock)
+// @desc    Get all medicines (Paginated & Searchable)
 // @route   GET /api/medicines
+// @access  Private
 const getMedicines = async (req, res) => {
   try {
-    const { keyword } = req.query;
+    // 1. Extract query parameters with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Default to 20 items per page
+    const search = req.query.search || '';
     
-    // Search logic (RegEx for partial matching)
-    const query = keyword ? {
-      name: { $regex: keyword, $options: 'i' },
-      isDeleted: false
-    } : { isDeleted: false };
+    // 2. Calculate how many documents to skip
+    const skip = (page - 1) * limit;
 
-    const medicines = await Medicine.find(query).sort({ name: 1 });
-    res.json({ success: true, count: medicines.length, data: medicines });
+    // 3. Build the query object
+    let query = { isDeleted: false };
+    
+    // If user is searching, use Regex for partial, case-insensitive matching
+    if (search) {
+      query.name = { $regex: search, $options: 'i' }; 
+    }
+
+    // 4. Run Count and Fetch concurrently for maximum speed
+    const [total, medicines] = await Promise.all([
+      Medicine.countDocuments(query),
+      Medicine.find(query)
+        .sort({ createdAt: -1 }) // Newest first
+        .skip(skip)
+        .limit(limit)
+    ]);
+
+    // 5. Return the paginated payload
+    res.status(200).json({ 
+      success: true, 
+      count: medicines.length,
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      },
+      data: medicines 
+    });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
