@@ -97,20 +97,135 @@ const createBill = async (req, res) => {
   }
 };
 
-// @desc    Get all bills / transaction history
+// @desc    Get all bills (Paginated & Searchable by Patient)
 // @route   GET /api/bills
 // @access  Private
 const getBills = async (req, res) => {
   try {
-    const bills = await Bill.find()
-      .populate('patient', 'name mobile') // Fetch patient name and mobile
-      .populate('items.medicine', 'name') // Fetch medicine names
-      .sort('-createdAt'); // Sort by newest first
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    
+    const skip = (page - 1) * limit;
+    let query = {};
+
+    // --- THE UPGRADED SEARCH ENGINE ---
+    if (search) {
+      const Patient = require('../models/Patient');
       
-      res.status(200).json({ success: true, count: bills.length, data: bills });
-    } catch (error) {
+      // 1. Find matching patients by Name or Phone
+      const matchingPatients = await Patient.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { mobile: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      
+      const patientIds = matchingPatients.map(p => p._id);
+      
+      // 2. Match EITHER the Patient ID OR a partial match on the Invoice _id string
+      query.$or = [
+        { patient: { $in: patientIds } },
+        { 
+          $expr: { 
+            $regexMatch: { 
+              input: { $toString: "$_id" }, 
+              regex: search, 
+              options: "i" 
+            } 
+          } 
+        }
+      ];
+    }
+
+    // Run Count and Fetch concurrently
+    const [total, bills] = await Promise.all([
+      Bill.countDocuments(query),
+      Bill.find(query)
+        .populate('patient', 'name mobile membershipTier') // Pull patient details
+        .sort({ createdAt: -1 }) // Newest bills first
+        .skip(skip)
+        .limit(limit)
+    ]);
+
+    res.status(200).json({ 
+      success: true, 
+      count: bills.length,
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      },
+      data: bills 
+    });
+
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-module.exports = { createBill, getBills };
+// @desc    Export bills to CSV-ready format
+// @route   GET /api/bills/export
+// @access  Private
+const exportBills = async (req, res) => {
+  try {
+    const search = req.query.search || '';
+    let query = {};
+
+    // --- THE UPGRADED SEARCH ENGINE ---
+    if (search) {
+      const Patient = require('../models/Patient');
+      
+      // 1. Find matching patients by Name or Phone
+      const matchingPatients = await Patient.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { mobile: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      
+      const patientIds = matchingPatients.map(p => p._id);
+      
+      // 2. Match EITHER the Patient ID OR a partial match on the Invoice _id string
+      query.$or = [
+        { patient: { $in: patientIds } },
+        { 
+          $expr: { 
+            $regexMatch: { 
+              input: { $toString: "$_id" }, 
+              regex: search, 
+              options: "i" 
+            } 
+          } 
+        }
+      ];
+    }
+
+    // Fetch ALL matching bills without pagination limits
+    const bills = await Bill.find(query)
+      .populate('patient', 'name mobile')
+      .sort({ createdAt: -1 });
+
+    // Map the database objects into a clean, flat structure for Excel
+    const csvData = bills.map(bill => ({
+      Invoice_ID: bill._id.toString().slice(-8).toUpperCase(),
+      Date: new Date(bill.createdAt).toLocaleDateString(),
+      Time: new Date(bill.createdAt).toLocaleTimeString(),
+      Patient_Name: bill.patient ? bill.patient.name : 'Walk-In',
+      Patient_Mobile: bill.patient ? bill.patient.mobile : 'N/A',
+      Items_Count: bill.items.length,
+      Subtotal: bill.totalAmount || 0,
+      Discount: bill.discount || 0,
+      Grand_Total: bill.grandTotal || bill.totalAmount || 0,
+      Payment_Mode: bill.paymentMode
+    }));
+
+    res.status(200).json({ success: true, data: csvData });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createBill, getBills, exportBills };
