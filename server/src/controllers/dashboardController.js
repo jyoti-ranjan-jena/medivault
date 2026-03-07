@@ -18,6 +18,9 @@ const getDashboardStats = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // 🔴 NEW: Need the first day of the month for Monthly Revenue calculations
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
     const ninetyDaysFromNow = new Date();
     ninetyDaysFromNow.setDate(today.getDate() + 90);
 
@@ -34,7 +37,9 @@ const getDashboardStats = async (req, res) => {
       expiringMedicinesData,
       tierDataAgg,
       topVIPs,
-      weeklyBills
+      weeklyBills,
+      financialMetrics, // 🔴 NEW: Aggregating Monthly & All-Time Revenue
+      topAssets         // 🔴 NEW: Aggregating Top Selling Medicines
     ] = await Promise.all([
       Patient.countDocuments(),
       Patient.countDocuments({ status: 'Active' }),
@@ -48,8 +53,53 @@ const getDashboardStats = async (req, res) => {
         { $group: { _id: "$membershipTier", count: { $sum: 1 } } }
       ]),
       Patient.find().sort({ totalLifetimeSpent: -1 }).limit(5).select('name mobile membershipTier totalLifetimeSpent'),
-      // FIX: Fetch both grandTotal AND legacy totalAmount
-      Bill.find({ createdAt: { $gte: queryStartDate } }).select('createdAt grandTotal totalAmount patient')
+      Bill.find({ createdAt: { $gte: queryStartDate } }).select('createdAt grandTotal totalAmount patient'),
+      
+      // 🔴 THE NEW FINANCIAL PIPELINE
+      Bill.aggregate([
+        {
+          $facet: {
+            monthly: [
+              { $match: { createdAt: { $gte: firstDayOfMonth } } },
+              { $group: { _id: null, total: { $sum: { $ifNull: ["$grandTotal", "$totalAmount", 0] } } } }
+            ],
+            allTime: [
+              { $group: { _id: null, total: { $sum: { $ifNull: ["$grandTotal", "$totalAmount", 0] } } } }
+            ]
+          }
+        }
+      ]),
+
+      // 🔴 THE NEW TOP ASSETS PIPELINE
+      Bill.aggregate([
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.medicine",
+            totalSold: { $sum: "$items.quantity" },
+            revenueGenerated: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
+          }
+        },
+        { $sort: { totalSold: -1 } },
+        { $limit: 4 }, // Get top 4 best sellers
+        {
+          $lookup: {
+            from: 'medicines', // Joins the medicine table to get the names
+            localField: '_id',
+            foreignField: '_id',
+            as: 'medicineDetails'
+          }
+        },
+        { $unwind: "$medicineDetails" },
+        {
+          $project: {
+            name: "$medicineDetails.name",
+            category: "$medicineDetails.category",
+            totalSold: 1,
+            revenueGenerated: 1
+          }
+        }
+      ])
     ]);
 
     // Format Expiry Radar
@@ -75,7 +125,7 @@ const getDashboardStats = async (req, res) => {
     });
     expiringItems.sort((a, b) => a.daysLeft - b.daysLeft);
 
-    // Format Weekly Chart Data exactly like the frontend did
+    // Format Weekly Chart Data
     const chartMap = {};
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
@@ -94,7 +144,6 @@ const getDashboardStats = async (req, res) => {
       const billDate = new Date(bill.createdAt);
       const dateStr = getLocalDateString(billDate); 
       
-      // FIX: The Failsafe. If grandTotal is missing on old records, use totalAmount!
       const billRevenue = Number(bill.grandTotal || bill.totalAmount || 0);
       
       if (chartMap[dateStr]) {
@@ -106,6 +155,10 @@ const getDashboardStats = async (req, res) => {
     });
 
     const tierData = tierDataAgg.map(t => ({ name: t._id || 'Standard', count: t.count }));
+    
+    // Extract the new Financials
+    const monthlyRevenue = financialMetrics[0]?.monthly[0]?.total || 0;
+    const allTimeRevenue = financialMetrics[0]?.allTime[0]?.total || 0;
 
     res.status(200).json({
       success: true,
@@ -114,11 +167,14 @@ const getDashboardStats = async (req, res) => {
         activePatients,
         totalMedicines,
         todayRevenue,
+        monthlyRevenue, // 🔴 EXPORTING NEW DATA
+        allTimeRevenue, // 🔴 EXPORTING NEW DATA
         lowStockItems,
         expiringItems,
         chartData: Object.values(chartMap),
         tierData,
-        topVIPs
+        topVIPs,
+        topAssets       // 🔴 EXPORTING NEW DATA
       }
     });
 
